@@ -1,0 +1,12 @@
+{
+    "options" : [
+        {
+            "name" : ["Parameter Scan"],
+            "code" : ["Parameter Scan"]
+        },
+        {
+            "name" : ["Optimization"],
+            "code" : ["Optimization"]
+        }
+    ]
+}

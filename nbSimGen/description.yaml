@@ -1,0 +1,9 @@
+Type: Jupyter Notebook Extension
+Compatibility: 3.x, 4.x, 5.x, 6.x
+Name: nbSimGen
+Main: main.js
+Link: README.md
+Description: |
+  Generates simulation experiments for Jupyter Notebooks based on annotated Markdown and code cells.
+Parameters:
+- none

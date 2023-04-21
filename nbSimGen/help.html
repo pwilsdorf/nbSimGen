@@ -1,0 +1,354 @@
+<html>
+  <head>
+    <style>
+      .sidepanel {
+  height: 100%;
+  width: 0;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  background-color: white;
+  overflow-x: hidden;
+  transition: 0.5s;
+  padding-top: 60px;
+  display: block;
+  flex-direction: column;
+}
+      .sidepanel .closebtn {
+        position: absolute;
+        top: 0;
+        right: 25px;
+        font-size: 36px;
+        cursor: pointer; 
+        margin-left: 50px;
+        flex: 1;
+        margin-top: 25px;
+      }
+      .closebtn {
+        position: absolute;
+        top: 0;
+        right: 25px;
+        font-size: 36px;
+        cursor: pointer; 
+        margin-left: 50px;
+        flex: 1;
+        margin-top: 25px;
+      }
+      .btn-group button {
+  
+  width: 25%; /* Set a width if needed */
+  margin-left: 2.5%;
+  display: block; 
+  margin-top: 1%;
+  box-shadow: 1px 1px 3px 1px #3dc21b;
+	background-color:#44c767;
+	border-radius:22px;
+	border:2px solid #18ab29;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Arial;
+	font-size:17px;
+	padding:16px 31px;
+	text-decoration:none;
+	text-shadow:1px 2px 3px #2f6627;
+}
+.btn-group.button:hover {
+	background-color:#7bbd57;
+}
+.btn-group.button:active {
+	position:relative;
+	top:1px;
+}
+.btn-group:first-child{
+  margin-top: 10%;
+}
+.closebtn-group close {
+  color: white; /* White text */
+  cursor: pointer; /* Pointer/hand icon */
+  width: 5%; /* Set a width if needed */
+  margin-right: 10%;
+  margin-top: 10%;
+}
+    </style>
+  </head>
+  <body>
+    <div class="btn-group">
+      <button onclick="toggleNav(3)">General Help</button>
+      <button onclick="toggleNav(1)">Parameter Scan</button>
+      <button onclick="toggleNav(2)">Optimization</button>
+    </div>
+    <a class="closebtn" onclick="self.close()">&times;</a>
+    <div id="Parameterscan_Panel" class="sidepanel">
+        <a class="closebtn" onclick="toggleNav(0)">&times;</a>
+      <h1>Parameter Scan</h1>
+        <p>During a parameter scan, configurations are systematically assigned to combinations the specified input parameters and simulations are carried out. 
+          The extension offers two possibilities for designing a parameter scan:
+        </p>
+        <h2>Full Factorial Parameter Scan</h2>
+        <p>The full factorial parameter scan iterates over all combinations of input parameters and performs a simulation run 
+          with each possible input configuration.<br> To perform a full factorial parameter scan, the following information is required required in annotated form:</p>
+          <ul>
+            <li>Input parameters for the parameter scan in the following syntax:<br>
+              a=[2,4,0.5] # @parameter<br>
+              b=[1,2,0.1] # @parameter<br>
+              The first value of the list defines the start value of the associated parameter (lower bound).<br>
+              The second value of the list defines the final value of the associated parameter (upper bound).<br>
+              The third value of the list defines the step size during the parameter scan.<br>
+              The annotation @parameter defines the triple as an input parameter.</li>
+              <picture>
+                <img src="assets/eingabeparameter.png" alt="Eingabeparameter" style="width:auto;">
+              </picture>
+            <li>A file path for the generated experiment results in the following syntax:<br>
+              'mySimulationStudy/results.csv' # @output_file (with quotation marks)<br></li>
+              <picture>
+                <img src="assets/outputfile.png" alt="Ausgabepfad" style="width:auto;">
+              </picture>
+            <li>Desired output variables in the following syntax:<br>
+              myOutput # @output_variable<br>
+              The specified output variables have to be extractable from the simulation, otherwise the simulation will output 
+              all possible data.</li>
+              <picture>
+                <img src="assets/ausgabeparameter.png" alt="Ausgabeparameter" style="width:auto;">
+              </picture>
+            <li>Special cases for which no simulation run is to be performed in the following syntax:<br>
+              'a'+'b'>1 # @exception<br>
+              Exceptions can be any Boolean expression (evaluates to true or false).<br>
+              If particlar input parameter configurations shall be excluded from the analysis, the used parameters have to be marked with quotation marks.
+              <picture>
+                <img src="assets/exception.png" alt="Ausnahmen" style="width:auto;">
+              </picture>
+            </li>
+          </ul>
+            <h2>Latin Hypercube</h2>
+            <p> In the Latin hypercube method, the value ranges of the input parameters are divided into n subspaces, and then 
+              exactly n input parameter configurations are are sampled so that no two configurations share the same 
+              "row" or "column". The Latin hypercube design requires fewer design points and thus reduces 
+              runtime of the simulation experiment compared to a full factorial scan.
+              To perform Latin hypercube sampling, the following annotations are needed:
+            </p>
+            <ul>
+              <li>Input parameters for sampling in the following syntax:<br>
+                a=[2,4] # @parameter<br>
+                b=[1,2] # @parameter<br>
+                The first value of the list defines the lower bound of the associated parameter.<br>
+                The second value of the list defines the upper bound of the associated parameter.<br>
+                The annotation @parameter defines the tuple as an input parameter.</li>
+                <picture>
+                  <img src="assets/eingabeparameter_latin.png" alt="Eingabeparameter" style="width:auto;">
+                </picture>
+              <li>A file path for the generated experiment results can be provided in the following syntax:<br>
+                'mySimulationStudy/results.csv' # @output_file (with quotation marks)<br></li>
+                <picture>
+                  <img src="assets/outputfile_latin.png" alt="Ausgabepfad" style="width:auto;">
+                </picture>
+              <li>Desired output variables in the following syntax:<br>
+                myOutput # @output_variable<br>
+                It must be possible to extract the specified output variables from the simulation, otherwise 
+                the simulation will output all possible data.</li>
+                <picture>
+                  <img src="assets/ausgabeparameter_latin.png" alt="Ausgabeparameter" style="width:auto;">
+                </picture>
+              <li>Special cases for which no simulation run shall be performed in the following syntax:<br>
+                'a'+'b'>1 # @exception<br>
+                Exceptions can be any Boolean expression (evaluating to be true or false).<br>
+                If parameter configurations shall be excluded, this has to be indicated by quotation marks around the parameter names. 
+                <picture>
+                  <img src="assets/exception_latin.png" alt="Ausnahmen" style="width:auto;">
+                </picture>
+              </li>
+            <p>To perform Latin hypercube sampling and not a full factorial parameter scan, the annotation term @number_of_sample_points must also be set in the following syntax:
+              <br> 200 # @number_of_sample_points <br>
+              This indicates how many subspaces the parameters are divided into and how many samples are to be generated accordingly.
+            </p>
+              <picture>
+                <img src="assets/samples.png" alt="Ausnahmen" style="width:auto;">
+              </picture>
+            </ul>
+            <p><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br></p>
+    </div>
+    <div id="Optimierung_Panel" class="sidepanel">
+        <a class="closebtn" onclick="closeNav()">&times;</a>
+      <h1>Simulation-based Optimization</h1>
+      <p>In an optimization experiment, a desired objective function is minimized or maximized by changing the configurations
+        of the input parameters. The extension offers two different options for optimization:
+      </p>
+      <h2>Differential Evolution</h2>
+      <p>The first way to search for an optimal input parameterization
+        is a differential evolution algorithm. In this algorithm there is a so-called population,
+        in which each individual represents a parameterization of the input parameters.
+        A simulation run is now carried out with each of these "candidates" and the result is recorded.
+        Subsequently, new candidates are entered in the input space based on the positions of the already existing candidates
+        generated and further simulation runs are carried out with their parameterizations.
+        If the resulting objective function value of the new candidate is now smaller (when minimizing) or larger (when maximizing),
+        the new candidate is included in the population, otherwise it is discarded.
+        This process is now repeated over several "generations"
+        so that candidates with a worse objective function value are excluded over the generations,
+        while candidates with better objective function values remain in the population and form the basis for even better candidates in future generations.
+        To perform an optimization with the differential evolution algorithm, the following specifications can be made:</p>
+         <ul>
+          <li>Input parameters for the parameter scan in the following syntax:<br>
+            a=[2,4,3] # @parameter<br>
+            b=[1,2,1.5] # @parameter<br>
+            The first value of the list defines the lower bound of the associated parameter.<br>
+            The second value of the list defines the upper bound of the associated parameter.<br>
+            The third value defines the initial value of the parameter.<br>
+            The #@parameter defines the triple as an input parameter.</li>
+            <picture>
+              <img src="assets/eingabeparameter-optimierung.png" alt="Eingabeparameter_optimierung" style="width:auto;">
+            </picture>
+            <li>A file path for the generated experiment results in the following syntax:<br>
+              'mySimulationStudy/results.csv' # @output_file (with quotation marks)<br></li>
+              <picture>
+                <img src="assets/outputfile_optimierung.png" alt="Ausgabepfad_optimierung" style="width:auto;">
+              </picture>
+              <li>Desired output variables in the following syntax:<br>
+                myOutput # @output_variable<br></li>
+                <picture>
+                  <img src="assets/ausgabeparameter_optimierung.png" alt="Ausgabeparameter_optimierung" style="width:auto;">
+                </picture>       
+         <li> The size of the population in the following syntax:<br>
+        25 # @population<br>
+        <picture>
+          <img src="assets/optimierung_population.png" alt="Optimierung-Population" style="width:auto;">
+        </picture>
+        <br>
+        If no population is specified, the population size is set to 3.
+      </li>
+      <li> The maximum number of generations in the following syntax:<br>
+        5 # @generations<br>
+        <picture>
+          <img src="assets/optimierung_maximalzahl.png" alt="Optimierung-Population" style="width:auto;">
+        </picture>
+        <br>
+        If no maximum number is specified, the number is set to 1.
+      </li>
+         </ul>
+      <h2>Dual Annealing</h2>
+      <p> The alternative to the differential evolution algorithm
+        for optimization within the extension is the dual annealing algorithm.
+         A cooling process is imitated by the "temperature".
+         A probability represents that a found local optimum for an occupancy
+         with a worse objective function value is discarded, so that under certain circumstances another
+         local or even the global optimum is found. The probability
+         that a poorer result is accepted depends on the one hand on
+         how much the poorer result deviates from the current optimum and, on the other hand,
+         how large the current temperature factor is. The temperature function is a
+         positive monotonically decreasing sequence, which is why the probability
+          that a worse result is accepted over the iterations of the algorithm is
+          continuously declining. Also the jump distance from the current optimum to other
+         parameterizations depends on the current temperature.
+         To perform an optimization with the dual annealing algorithm, the following specifications can be made:</p>
+          <ul>
+            <li>Input parameters for the optimization procedure in the following syntax:<br>
+              a=[2,4,3] # @parameter<br>
+              b=[1,2,1.5] # @parameter<br>
+              The first list value defines the lower bound of the associated parameter.<br>
+              The second list value defines the upper bound of the associated parameter.<br>
+              The third list value defines the initial value of the associated parameter.<br>
+              The annotation with @parameter defines this triple as an input parameter.</li>
+              <picture>
+                <img src="assets/eingabeparameter-optimierung.png" alt="Eingabeparameter_optimierung" style="width:auto;">
+              </picture>
+              <li>A file path for the generated experiment results in the following syntax:<br>
+                'mySimulationStudy/results.csv' # @output_file (with quotation marks)<br></li>
+                <picture>
+                  <img src="assets/outputfile_optimierung.png" alt="Ausgabepfad_optimierung" style="width:auto;">
+                </picture>
+                <li>Desired output variable in the following syntax:<br>
+                  myOutput # @output_variable<br></li>
+                  <picture>
+                    <img src="assets/ausgabeparameter_optimierung.png" alt="Ausgabeparameter_optimierung" style="width:auto;">
+                  </picture>
+                  <li> The initial temperature in the following syntax:<br>
+                    4000 # @temperature<br>
+                    <picture>
+                      <img src="assets/optimierung_temperature.png" alt="Optimierung-Population" style="width:auto;">
+                    </picture>
+                    <br>
+                    If no initial temperature is specified, it is set to 5230.
+                  </li>       
+    <li> The number of iterations in the following syntax:<br>
+      100 # @iterations<br>
+      <picture>
+        <img src="assets/optimierung_iterationen.png" alt="Optimierung-Population" style="width:auto;">
+      </picture>
+      <br>
+      If no number of iterations is specified, the number is set to 1000.
+    </li>
+          </ul>
+      <p><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br></p>
+    </div>
+
+    <div id="Allgemeine_Hilfe" class="sidepanel">
+    <a class="closebtn" onclick="closeNav()">&times;</a>
+    <h1>Help</h1>
+    <h2>Introduction</h2>
+      <p>This Jupyter Notebook Extension can be used to automatically generate experiment code and is intended to speed up and facilitate the iterative process of simulation studies.
+        In order to be able to use the extension, the simulation model (plus the simulator) for which experiments are to be generated must be inserted into the notebook.
+        It is important that the simulator is interfaced via a method called run_sim, which must pass a dictionary with input parameters and a list of output variables
+        and returns the simulation results.
+    <h2>User Interface</h2>
+      <p>The extension adds four more elements to the Jupyter Notebook toolbar, two of which are buttons, one is a selection menu, and one is a checkbox.
+        <h3>Button for experiment generation</h3> If this is pressed, the desired experiment code is generated in Python depending on the user input and written into a new code cell of the notebook.
+        This can now be started via the notebook's Run command, which will carry out the corresponding simulation experiment.
+        <picture>
+          <img src="assets/user_interface_1_.png" alt="Ausnahmen" style="width:100%;">
+        </picture>
+         <h3>Help</h3>
+         If the help button is pressed, the notebook splits into two halves, on the left is the original notebook with the cells it contains, on the right
+         there is a help tool on this page that contains information on how to use the extension. There are three different sections within the help tool, one for general information
+       on handling the extension and two for the existing experiment types. These sections can be opened by pressing the corresponding buttons. These contain help and examples in the form of text and images,
+     which document the process of experiment generation and are intended to make it more understandable for the user. The help page can be closed again by pressing the help button again.
+      </p>
+      <picture>
+        <img src="assets/user_interface_2_.png" alt="Ausnahmen" style="width:100%;">
+      </picture>
+      <h3>Selection Menu for the Experiment Type</h3>
+      In addition to the added buttons, there is a selection menu that can be used to choose between different experiment types. Two different experiment types are currently available, 
+      a parameter scan and a simulation-based optimization. If one of these options is selected and then the
+      experiment generation button is pressed, code is generated according to the selected experiment type. If no experiment type is selected, no code is generated.
+      <picture>
+        <img src="assets/user_interface_3_.png" alt="Ausnahmen" style="width:100%;">
+      </picture>
+      <h2>Annotations</h2>
+      In order to further specify the simulation experiments to be generated by the extension, an annotation language was developed through which the user
+       can control the generated experiments to their needs. Terms of this annotation language can be written in any cell of the notebook and always exist
+       of an expression followed by the symbol "@" and then the name of the annotation word. If the annotation is part of a code cell, in addition, it has to be put inside a line comment.
+       Which annotations are available depends on the
+       experiment type and preferred methodology. A more detailed description of the syntax of this annotation language can be found in the corresponding help sections for the individual experiment types.
+         <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br></p>
+    </div>
+
+    <script>
+      
+      function closeNav() {
+        const collection = document.getElementsByClassName("sidepanel");
+        for (var i = 0; i < collection.length; i++){
+        collection[i].style.width = "0";
+        }
+      }
+
+      function toggleNav(identifier) {
+    var d = document;
+    const collection = document.getElementsByClassName("sidepanel");
+        for (var i = 0; i < collection.length; i++){
+        collection[i].style.width = "0";
+        }
+   
+        if(identifier == 1){
+            d.getElementById("Parameterscan_Panel").style.width = "500px";
+        }
+        else  if ( identifier == 2){
+          d.getElementById("Optimierung_Panel").style.width = "500px";
+        }
+        else if ( identifier == 3){
+          d.getElementById("Allgemeine_Hilfe").style.width = "500px";
+        }
+}
+function closeButton(){
+  window.close();
+}
+    </script>
+  </body>
+</html>
