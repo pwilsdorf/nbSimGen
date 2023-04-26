@@ -207,7 +207,7 @@ function convertInputToOutput(cell_content){
 /*Process exceptions found in the user input.*/
 function convertInputToException(cell_content){
     var cell_array = cell_content.split("\n");
-    ausnahmestring = String("if(not(");
+    ausnahmestring = String("        if(");
     for(var j = 0; j< cell_array.length; j++){
         if(cell_array[j].includes("@exception")){
             ausnahme_part_string=String(cell_array[j].split("@exception")[0]);
@@ -222,11 +222,12 @@ function convertInputToException(cell_content){
 
         }
     }
-    if(ausnahmestring != "if(not("){
+    if(ausnahmestring != "        if("){
         ausnahmestring=ausnahmestring.slice(0,ausnahmestring.length-4);
-        ausnahmestring += ")):";}
-        /*If no exceptions were decalred, use the following string*/
-        else{ausnahmestring = "if(True):"}
+        ausnahmestring += "):\n            continue\n";
+    }
+    /*If no exceptions were declared, use empty string*/
+    else{ausnahmestring = ""}
     return ausnahmestring;
 }
 function convertInputToList(cell_content){
@@ -234,98 +235,75 @@ function convertInputToList(cell_content){
     /*If the number of sample points was not declared, a full factorial experiment will be generated.*/
     if(!(cell_content.includes("@number_of_sample_points"))){
     /*Some auxiliary variables for the full factorial parameter scan*/
-    parameterstring = String("params = [");
-    outputparameterstring = String("outputs = [");
+    parameterstring = String("");
+    xstring = String("");
+    parameterdictionarystring = String("");
+    outputvariablestring = String("outputs = [");
     ausnahmestring = String("                        if(not(");
     /*Go through cells from from last to first and find parameters - but do not use them twice*/
     const param_list=[]
     const output_list=[]
-    for(var l = cell_array.length - 1; l >= 0; l--){
+    counter=1
+    for(var j = cell_array.length - 1; j >= 0; j--){
         /*Look for input parameters*/
         if(cell_array[j].includes("@parameter")){
-            for (var i = 0; i < cell_array[j].length; i++) {
-                if (cell_array[j].charAt(i)==='['){
-                    parameterstring += "[";
-                    while(cell_array[j].charAt(i+1)!= ']'){
-                        parameterstring += cell_array[j].charAt(i+1);
-                        i++;
-                    }
-                }
-                else if (cell_array[j].charAt(i)=== "]"){
-                    var param_name = cell_array[j].split("=");
-                    /*If the same parameter was found before (re-declared)*/
-                    if(!param_list.includes(param_name[0])){
-                        parameterstring += ",\'";
-                        parameterstring += param_name[0];
-                        parameterstring += "\'],";
-                        param_list.push(param_name[0]);
-                    }
-                }
+            var param = cell_array[j].split(/=|,|\[|\]|@/);
+            param_name = param[0].trim();
+            /*If the same parameter was found before (re-declared)*/
+            if(!param_list.includes(param_name)){
+                /*Get the values of the lower, upper bound, and interval*/
+                l_bound = param[2].trim();
+                u_bound = param[3].trim();
+                interval = param[4].trim();
+                parameterstring += `X` + counter + ` = list(np.arange(` + l_bound + `, ` + u_bound + ` + ` + interval + `, ` + interval + `))\n`;
+                xstring += `X` + counter + `, `;
+                parameterdictionarystring += `        params_dictionary.update({\'` + param_name + `\': point\[` + (counter-1) + `\]})\n`;
+                param_list.push(param_name);
+                counter++;
             }
+        }
         /*Look for output paths*/
         if(cell_array[j].includes("@output_file")){
             output_file=String(cell_array[j].split("@output_file"));
-            outputfile_string = String('\noutput_file= ' + cell_array[j].split("@output_file")[0]);
+            outputfile_string = String('output_file = ' + cell_array[j].split("@output_file")[0] + `\n`);
         }
         /*Look for output variables*/
         if(cell_array[j].includes("@output_variable")){
             output_name = cell_array[j].split("@output_variable")[0];
             /*Do not use the same output twice */
             if(!output_list.includes(output_name)){
-                outputparameterstring+="\'";
-                outputparameterstring+= output_name;
-                outputparameterstring+="\'";
-                outputparameterstring+=', ';
+                outputvariablestring+="\'";
+                outputvariablestring+= output_name;
+                outputvariablestring+="\'";
+                outputvariablestring+=', ';
                 output_list.push(output_name);
             }
         }
-        }
-    }       
+    }     
     /*Close auxiliary strings and concatenate them*/
-    parameterstring=parameterstring.slice(0,parameterstring.length-1);
-    outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
-    parameterstring += "]";
-    parameterstring += convertInputToOutput(all_cell_content);
-    outputparameterstring += ']\n';
-    outputparameterstring += parameterstring;
+    outputvariablestring=outputvariablestring.slice(0,outputvariablestring.length-2);
+    outputvariablestring += ']\n';
+    xstring = xstring.slice(0,xstring.length-2); //remove trailing comma
     /*Return string*/
-    return outputparameterstring + `\n
-        
-        
+    return `import itertools\nimport numpy as np\n\n` +
+    outputfile_string +
+    outputvariablestring + 
+    parameterstring + 
+`params_dictionary = {} 
+iteration = 0
 with open(output_file, 'w', encoding='UTF8') as f:
-        writer = csv.writer(f, delimiter=",")
-        iteration = 0
-        params2=[]
-        params_dictionary={}
-        for i in range(0,len(params)):
-            params_dictionary.update({params[i][3]:''})
-            params2.append(params[i][0])
-        pointer=0
-        csv_list=list(params_dictionary.keys())+outputs
+    writer = csv.writer(f, delimiter=",")
+    csv_list = list(params_dictionary.keys()) + outputs
+    writer.writerow(csv_list)
+    design = itertools.product(` + xstring + `)
+    for point in design:\n` +
+        parameterdictionarystring +
+`        iteration += 1\n` +
+        convertInputToException(all_cell_content)+`
+        print(f'{iteration}, {params_dictionary}')
+        csv_list = list(params_dictionary.values()) + run_simulation(params_dictionary, outputs)
         writer.writerow(csv_list)
-        while True:
-                for l in range(0,len(params)):
-                    if params2[l] > params[l][1]:
-                        break
-                    if l == len(params)-1:
-                        iteration += 1
-                        print(f'{iteration}, {params2}')
-                        for m in range(0,len(params2)):
-                            params_dictionary[params[m][3]]= params2[m]
-                        print(params_dictionary)\n
-                        `+convertInputToException(all_cell_content)+`    
-                            csv_list= params2+run_simulation(params_dictionary,outputs)
-                        writer.writerow(csv_list)
-                if params2[pointer]<params[pointer][1]+params[pointer][2]:
-                    pointer = 0
-                else:
-                    for i in range(0,pointer+1):
-                        params2[i]=params[i][0]
-                    pointer += 1
-                if pointer>len(params)-1:
-                    break
-                params2[pointer]+=params[pointer][2]
-        f.close()
+f.close()
         `;}
     else{
         /*If a Latin hypercube shall be used for sampling*/
@@ -337,17 +315,16 @@ iteration=0`
     writer = csv.writer(f, delimiter=",")\n`)
     sampler_string=String(`    sampler = qmc.LatinHypercube(d=`);
     var counter = 0;
-    outputparameterstring = String(`    outputs=[`)
+    outputvariablestring = String(`    outputs=[`)
     qmc_string=String(`    parameterarray=qmc.scale(sample,l_bounds,u_bounds)
     for i in range(0,len(parameterarray)):
         for j in range(0,len(parameterarray[i])):
             params_dictionary.update([(list(params_dictionary)[j],parameterarray[i][j])])
-        iteration+=1
-        print(f'{iteration}, {params_dictionary}')
-        `
-    +convertInputToException(all_cell_content)+`
-            csv_list= list(params_dictionary.values())+run_simulation(params_dictionary,outputs)
-            writer.writerow(csv_list)`);
+        iteration+=1\n`
+    +convertInputToException(all_cell_content)+
+`        print(f'{iteration}, {params_dictionary}')
+        csv_list= list(params_dictionary.values())+run_simulation(params_dictionary,outputs)
+        writer.writerow(csv_list)`);
     l_bound_string=String(`    l_bounds=[`);
     u_bound_string=String(`    u_bounds=[`);
     var l_aux_string=String(``);
@@ -374,10 +351,10 @@ iteration=0`
             if(cell_array[l].includes("@output_variable")){
                 var output_name=cell_array[l].split("@output_variable")[0]
                 if(!output_list.includes(output_name)){
-                    outputparameterstring+="\'";
-                    outputparameterstring+= output_name;
-                    outputparameterstring+="\'";
-                    outputparameterstring+=', ';
+                    outputvariablestring+="\'";
+                    outputvariablestring+= output_name;
+                    outputvariablestring+="\'";
+                    outputvariablestring+=', ';
                     output_list.push(output_name)
                 }
             }
@@ -389,13 +366,13 @@ iteration=0`
         /*Close auxiliary strings and concatenate them*/
         sampler_string += String(counter)+`)
     sample = sampler.random(n=`+sample_size_string.trim()+`)\n`;
-        outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
-        outputparameterstring+=`]\n`;
+        outputvariablestring=outputvariablestring.slice(0,outputvariablestring.length-2);
+        outputvariablestring+=`]\n`;
         l_bound_string+=l_aux_string.slice(1,l_aux_string.length);
         u_bound_string+=u_aux_string.slice(1,u_aux_string.length);
         l_bound_string+= `]\n`;
         u_bound_string+= `]\n`;
-        output_string += outputparameterstring + `    csv_list=list(params_dictionary.keys())+outputs\n    writer.writerow(csv_list)\n` +sampler_string + l_bound_string + u_bound_string + qmc_string+`\nf.close()`;
+        output_string += outputvariablestring + `    csv_list=list(params_dictionary.keys())+outputs\n    writer.writerow(csv_list)\n` +sampler_string + l_bound_string + u_bound_string + qmc_string+`\nf.close()`;
         return output_string;
 }
 }
