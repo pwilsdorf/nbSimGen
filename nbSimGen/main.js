@@ -6,74 +6,12 @@ define([
     'jquery',
     'base/js/dialog'
     ], function(Jupyter, events, codecell,$, dialog) {
-        /*Wenn das visualize-flag gesetzt wurde, wird der Codeblock zurückgegeben*/ 
-        var visualize = function(cell_content){
-            var cell_array = cell_content.split('\n');
-            for (var j = 0; j < cell_array.length; j++){
-                if(cell_array[j].includes("#@visualize")){
-                    
-                    return `\nimport numpy as np
-import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
-                    \ndef draw_heatmap(output_path,x_label,y_label,title):# Load data from CSV
-                    dat = np.genfromtxt(output_path, delimiter=',',skip_header=1)
-                    X_dat = dat[:,0]
-                    Y_dat = dat[:,1]
-                    Z_dat = dat[:,2]
-                    font = {'family': 'serif',
-                    'color':  'darkred',
-                    'weight': 'normal',
-                    'size': 16,
-                    }        
-                    # Convert from pandas dataframes to numpy arrays
-                    X, Y, Z, = np.array([]), np.array([]), np.array([])
-                    for i in range(len(X_dat)):
-                        X = np.append(X, X_dat[i])
-                        Y = np.append(Y, Y_dat[i])
-                        Z = np.append(Z, Z_dat[i])
-                            
-                    # create x-y points to be used in heatmap
-                    xi = np.linspace(X.min(), X.max(), 1000)
-                    yi = np.linspace(Y.min(), Y.max(), 1000)
-                            
-                    # Interpolate for plotting
-                    zi = griddata((X, Y), Z, (xi[None,:], yi[:,None]), method='cubic')
-                            
-                    # I control the range of my colorbar by removing data 
-                    # outside of my range of interest
-                    zmin = Z.min()
-                    zmax = Z.max()
-                    # zi[(zi<zmin) | (zi>zmax)] = None
-                            
-                    # Create the contour plot
-                    CS = plt.contourf(xi, yi, zi, 15, cmap=plt.cm.rainbow,
-                                    vmax=zmax, vmin=zmin)
-                    plt.xlabel(x_label, fontdict=font)
-                    plt.ylabel(y_label, fontdict=font)
-                    plt.title(title)
-                    plt.colorbar()  
-                    plt.show()`
-                ;}
-            }
-            return " ";
-        };
-        /*Wenn das visualize-flag gesetzt wurde, wird der Codeblock zurückgegeben. Allerdings wird diese Codezeile
-        an einer anderen Stelle Stelle angefügt, weshalb es eine zweite Hilfsfunktion gibt.*/
-        var visualize2 = function(cell_content){
-            var cell_array = cell_content.split('\n');
-            for (var j = 0; j < cell_array.length; j++){
-                if(cell_array[j].includes("#@visualize")){
-                    return `draw_heatmap(output_path,params[0][3],params[1][3],outputs[0])
-                    `
-                ;}
-            }
-            return " ";
-        };
+/*Build code for an optimization experiment.*/
 var convertOptparameterstoString = function(cell_content){
-            /* cell_content sammelt alle Zeilen des Notebooks, diese werden dann zuerst in die einzelnen Zeilen aufgesplittet und 
-            in ein Array gespeichert*/
+            /* cell_content collects all cells of the Notebook. 
+            Those are then split into lines and stored as an array.*/
             var cell_array = cell_content.split("\n");
-            /* Definition von Hilfsvariablen*/
+            /* Definition of auxiliary variables*/
             var annealing = false;
             var maximize = false;
             maxiter_string= String("maxiter=");
@@ -83,64 +21,63 @@ var convertOptparameterstoString = function(cell_content){
             bound_string = String("(");
             start_value_string = String("[");
             outputfile_string= String(" ");
-            csv_string= String(`\nwith open(output_path, 'w', encoding='UTF8') as f:\n    writer = csv.writer(f, delimiter=",")\n`);
-            csv_inside_string= String(`\n        csv_list= list(dict.values())\n        csv_list.append(return_values[0])\n        print("Der Rückgabewert beträgt: "+ str(return_values[0]))\n        writer.writerow(csv_list)`);
+            csv_string= String(`\nwith open(output_file, 'w', encoding='UTF8') as f:\n    writer = csv.writer(f, delimiter=",")\n`);
+            csv_inside_string= String(`\n        csv_list= list(dict.values())\n        csv_list.append(return_values[0])\n        print("The return value is: "+ str(return_values[0]))\n        writer.writerow(csv_list)`);
             counter = 0;
             for(var i = 0; i < cell_array.length; i++){
-                /* Wenn irgendwo im Notebook #@temperature oder #@iterations steht, wird annealing auf wahr gesetzt und der 
-                Dual-Annealing-Algorithmus wird generiert.*/
-                if(cell_array[i].includes("#@temperature")||cell_array[i].includes("#@iterations")){
+                /* If somewhere in the Notebook the terms @temperature oder @iterations are found, annealing is set 
+                to true and the Dual Annealing algorithm is generated.*/
+                if(cell_array[i].includes("@temperature")||cell_array[i].includes("@iterations")){
                     annealing = true;
                 }
-                /* Wenn irgendwo im Notebook #@maximize steht, wird maximize auf wahr gesetzt und der
-                Zielfunktionswert wird dann maximiert.*/
-                if(cell_array[i].includes("#@maximize")){
+                /* If somewhere in the Notebook the term @maximize is found, maximize is set to true and
+                the value of the objective function is maximized.*/
+                if(cell_array[i].includes("@maximize")){
                     maximize = true;
                 }
             }
-            /*Stringvariablen werden für den Fall deklariert, dass annaeling auf wahr gesetzt wurde(Weil Dual Annealing 
-                generiert werden soll).*/
+            /*String variables are declared for the case that annealing is true (generate dual annealing).*/
             if (annealing){
                 import_string = String(`from scipy.optimize import dual_annealing\n`);
                 population_string= String("initial_temp=");
-                iteration_annotate=String("#@iterations");
-                temperature_or_population=String("#@temperature");
+                iteration_annotate=String("@iterations");
+                temperature_or_population=String("@temperature");
                 function_call=String("dual_annealing");
             }
-            /*Stringvariablen werden für den Fall deklariert, dass annaeling falsch bleibt(Weil differentielle Evolution
-                generiert werden soll).*/
+            /*String variables are declared for the case that annealing remained false (generate differential evolution).*/
             else{import_string = String(`from scipy.optimize import differential_evolution\n`);
                  population_string= String("popsize=");
-                 iteration_annotate=String("#@generations");
-                 temperature_or_population=String("#@population");
+                 iteration_annotate=String("@generations");
+                 temperature_or_population=String("@population");
                  function_call=String("differential_evolution");
             }
             
-            /*Notebookinhalt wird zeilenweise durchsucht*/
+            /*Content of the notebook is evaluated row by row*/
             for (var j = 0; j < cell_array.length; j++){
-            if(cell_array[j].includes("#@parameter")){
-            var help_array = cell_array[j].split("=");
-                /*dictionary wird für jeden gefunden Parameter aktualisiert*/
-                return_string += '    dict.update({"'+help_array[0]+'":parameters['+counter+']})\n';
-                counter++;
-                value_string += help_array[1]+"\n";
+                /*Look for parameter*/
+                if(cell_array[j].includes("@parameter")){
+                    var help_array = cell_array[j].split("=");
+                    /*Dictionary is updated for each found parameter*/
+                    return_string += '    dict.update({"'+help_array[0]+'":parameters['+counter+']})\n';
+                    counter++;
+                    value_string += help_array[1]+"\n";
                 }
-                /*Ausgabeparameter werden gesucht*/
-                if(cell_array[j].includes("#@output_variable")){
-                    output_string = "    return_values = run_simulation(dict,['"+ cell_array[j].split("#@output_variable")[0]+"'])"
+                /*Look for output variables*/
+                if(cell_array[j].includes("@output_variable")){
+                    output_string = "    return_values = run_simulation(dict,['"+ cell_array[j].split("@output_variable")[0]+"'])"
                 }
-                /*Ausgabepfad wird gesucht*/
-                if(cell_array[j].includes("#@output_file")){
-                    outputfile_string = '\noutput_path= ' + cell_array[j].split("#@output_file")[0];
+                /*Look for output file*/
+                if(cell_array[j].includes("@output_file")){
+                    outputfile_string = '\noutput_file= ' + cell_array[j].split("@output_file")[0];
                 }
-                /*Temperatur oder Population wird gesucht*/
+                /*Look for temperature or population*/
                 if(cell_array[j].includes(temperature_or_population)){
-                    var help_array2 = cell_array[j].split("#@");
+                    var help_array2 = cell_array[j].split("@");
                     population_string += help_array2[0];
                 }
-                /*Anzahl Iterationen werden gesucht*/
+                /*Look for number of iterations*/
                 if(cell_array[j].includes(iteration_annotate)){
-                        var help_array3 = cell_array[j].split("#@");
+                        var help_array3 = cell_array[j].split("@");
                         maxiter_string += help_array3[0];
                     }
             }
@@ -148,9 +85,8 @@ var convertOptparameterstoString = function(cell_content){
 
             for (var j = 0; j < value_string_2.length; j++){
                 if (j % 3 == 0){
-                /*Inhalt der Parametertripel wird aufgesplittet, da die Intervallgrenzen der Parameter in den Algorithmen an unterschiedlichen
-                Stellen stehen*/
-                    if(value_string_2[j].includes("#@parameter")){
+                /*Content of the parameter triple is splitted, to get the parameter bounds.*/
+                    if(value_string_2[j].includes("@parameter")){
                         value_string.slice(1,value_string_2[j].length);
                     bound_string+="("+value_string_2[j].split("\n")[1];
                     }
@@ -167,11 +103,11 @@ var convertOptparameterstoString = function(cell_content){
             while(bound_string.includes("[")){
             bound_string = bound_string.replace('([','(');
             }
-            /* Teilstrings werden abgeschlossen*/
+            /*Close strings*/
             bound_string=bound_string.slice(0,bound_string.length-2);
             bound_string+=")";
             start_value_string=start_value_string.slice(0,start_value_string.length-1);
-            /*Defaultwerte werden gesetzt, sollten keinen Werte gesetzt worden sein*/
+            /*Set default values if optional annotations have not been found.*/
             if (population_string === "popsize="){
                 population_string = "popsize=3";
             }
@@ -182,30 +118,30 @@ var convertOptparameterstoString = function(cell_content){
                 if(annealing){ maxiter_string="maxiter=1000";}
                 else maxiter_string = "maxiter=1";
             }
-            /*Soll maximiert oder minimiert werden?*/
+            /*Template strings for maximize or minimize, respectively*/
             if(maximize){
                 returns_string = String("    return -return_values[0]\n");
-                print_string = String(`print("Der minimale Zielfunktionswert lautet: "+str(-result.fun))`);
+                print_string = String(`print("The minimal value of the objective function is: "+str(-result.fun))`);
             }
             else {returns_string = String("    return return_values[0]\n");
-            print_string = String(`print("Der minimale Zielfunktionswert lautet: "+str(result.fun))`);
+            print_string = String(`print("The minimal value of the objective function is: "+str(result.fun))`);
         }
-        /*String wird zusammengekettet*/
-            func_string =String(import_string+outputfile_string+return_string + `    print(dict)\n` + output_string + `\n    print("Der Rückgabewert beträgt: "+ str(return_values[0]))\n`+returns_string+`
+        /*Concatenate string*/
+            func_string =String(import_string+outputfile_string+return_string + `    print(dict)\n` + output_string + `\n    print("The return value is: "+ str(return_values[0]))\n`+returns_string+`
                    
             
 result =` +function_call+`(transform_list_to_dict,`+bound_string +`,x0=`+start_value_string+`],`+maxiter_string+`,`+population_string+`)
-print("Die minimale Parametrisierung lautet: "+str(result.x))\n`+print_string); 
-            /*Wenn ein Ausgabepfad gegeben ist, muss im Experimentcode noch mehr eingerückt werden, was im else-Fall passiert*/
+print("The minimal parametrization is: "+str(result.x))\n`+print_string); 
+            /*If an output path is given, the string needs to be indented more, see else branch*/
             if (outputfile_string === " "){
             return func_string;
             }
             else  {result = return_string.replace(/\n/g, "\n    ");
-            return import_string+"import csv"+outputfile_string+csv_string+"    "+result+output_string +csv_inside_string+`\n        print(return_values[0])\n    `+returns_string+`\n\n\n    result =`+function_call+`(transform_list_to_dict,`+bound_string +`,x0=`+start_value_string+`],`+maxiter_string+`,`+population_string+`)\n    print("Die minimale Parametrisierung lautet: "+str(result.x)) \n    `+print_string;}
+            return import_string+"import csv\n"+outputfile_string+csv_string+"    "+result+output_string +csv_inside_string+`\n        print(return_values[0])\n    `+returns_string+`\n\n\n    result =`+function_call+`(transform_list_to_dict,`+bound_string +`,x0=`+start_value_string+`],`+maxiter_string+`,`+population_string+`)\n    print("The minimal parametrization is: "+str(result.x)) \n    `+print_string;}
         };
-/*Wird aufgerufen, wenn der Parameterscan ausgewählt wurde und der "Play"-Button gedrückt wurde*/
+/*Call this function is a parameter scan was selected and the play button was pressed.*/
 var parameterscan_button_pressed = function(){
-                /*Zelleninhalte werden aneinader gekettet*/
+                /*Contents of the notebook cells are concatenated*/
                 cells = Jupyter.notebook.get_cells();
                 Jupyter.notebook.get_cell(cells.length - 1).select();
                 all_cell_content=String(" ");
@@ -213,17 +149,16 @@ var parameterscan_button_pressed = function(){
                     all_cell_content+=cells[i].get_text();
                     all_cell_content+="\n";
                 }
-                /*Codezelle mit Experimentcode wird an untersteter Stelle dem Notebook hinzugefügt*/
+                /*Code cell with experiment code is generated and inserted at the bottom of the notebook*/
                 Jupyter.notebook.
                 insert_cell_below('code').
-                set_text(`import csv`
-        + visualize(all_cell_content)+`\n`
-        + convertInputToList(all_cell_content)+visualize2(all_cell_content)
-                            );
+                set_text(`import csv\n`
+                        + convertInputToList(all_cell_content)
+                        );
         };
-/*Wird aufgerufen, wenn die Optimierung ausgewählt wurde und der "Play"-Button gedrückt wurde*/
+/*Call this function is an optimization experiment was selected and the play button was pressed.*/
     var optimize_button_pressed = function () {
-        /*Zelleninhalte werden aneinader gekettet*/
+        /*Contents of the cells are concatenated*/
         cells = Jupyter.notebook.get_cells();
                 Jupyter.notebook.get_cell(cells.length - 1).select();
                 all_cell_content=String(" ");
@@ -233,23 +168,23 @@ var parameterscan_button_pressed = function(){
                     all_cell_content+="\n";
                     }
                 }
-                /*Codezelle mit Experimentcode wird an untersteter Stelle dem Notebook hinzugefügt*/
+                /*Code cell with experiment code is inserted at the botton of the notebook.*/
                 Jupyter.notebook.
                 insert_cell_below('code').set_text(
     convertOptparameterstoString(all_cell_content));
     };
 
     var initialize = function () {
-        /*initialisiert die Toolbar zur Auswahl des Experimenttyps*/
+        /*initialize the toolbar for selecting the experiment type.*/
         var dropdown = $("<select></select>").attr("id", "option_picker")
                                              .css("margin-left", "0.5em")
                                              .attr("class", "form-control select-xs")
                                              .change();
         Jupyter.toolbar.element.append(dropdown);
     };
-/*Wird aufgerufen wenn der "Play"-Button gedrückt wurde*/
+/*Is called when the "Play"-Button is pressed.*/
 var pressed = function(){
-    /*Es wird überprüft, welche Option in der Toolbar ausgewählt wurde*/
+    /*Check which option was selected in the toolbar.*/
     var selected_snippet = $("select#option_picker").find(":selected");
     if (selected_snippet.attr('code') === 'Optimization'){
         optimize_button_pressed();
@@ -258,24 +193,24 @@ var pressed = function(){
         parameterscan_button_pressed();
     }
 }
-/*Verarbeitet den Ausgabepfad aus der Nutzereingabe*/
+/*Process the output path found in the user input.*/
 function convertInputToOutput(cell_content){
     var cell_array = cell_content.split("\n");
     for(var j = 0; j< cell_array.length; j++){
-        if(cell_array[j].includes("#@output_file")){
-            output_path=String(cell_array[j].split("#@output_file"));
-            outputfile_string = String('\noutput_path= ' + cell_array[j].split("#@output_file")[0]);
+        if(cell_array[j].includes("@output_file")){
+            output_file=String(cell_array[j].split("@output_file"));
+            outputfile_string = String('\noutput_file= ' + cell_array[j].split("@output_file")[0]);
         }
     }
     return outputfile_string;
 }
-/*Verarbeitet Ausnahmen aus der Nutzereingabe*/
+/*Process exceptions found in the user input.*/
 function convertInputToException(cell_content){
     var cell_array = cell_content.split("\n");
     ausnahmestring = String("if(not(");
     for(var j = 0; j< cell_array.length; j++){
-        if(cell_array[j].includes("#@exception")){
-            ausnahme_part_string=String(cell_array[j].split("#@exception")[0]);
+        if(cell_array[j].includes("@exception")){
+            ausnahme_part_string=String(cell_array[j].split("@exception")[0]);
             var ausnahme_part_string_values=ausnahme_part_string.split(/\"|\'/);
             for(var i=0; i<ausnahme_part_string_values.length; i++){
                 if(i%2==1){
@@ -290,62 +225,74 @@ function convertInputToException(cell_content){
     if(ausnahmestring != "if(not("){
         ausnahmestring=ausnahmestring.slice(0,ausnahmestring.length-4);
         ausnahmestring += ")):";}
-        /*Wenn keine Ausnahme deklariert wurde, wird der String auf if(True) gesetzt*/
+        /*If no exceptions were decalred, use the following string*/
         else{ausnahmestring = "if(True):"}
     return ausnahmestring;
 }
 function convertInputToList(cell_content){
     var cell_array = cell_content.split("\n");
-    /*Wenn #@number_of_sample_points deklariert wurde, dann wird Latin Hypercube generiert*/
-    if(!(cell_content.includes("#@number_of_sample_points"))){
-    /*Einige Hilfsvariablen werden für den full factorial Parameterscan definiert*/
+    /*If the number of sample points was not declared, a full factorial experiment will be generated.*/
+    if(!(cell_content.includes("@number_of_sample_points"))){
+    /*Some auxiliary variables for the full factorial parameter scan*/
     parameterstring = String("params = [");
     outputparameterstring = String("outputs = [");
     ausnahmestring = String("                        if(not(");
-    for (var j = 0; j < cell_array.length; j++){
-        /*Es wird nach Eingabeparametern gesucht*/
-        if(cell_array[j].includes("#@parameter")){
-    for (var i = 0; i < cell_array[j].length; i++) {
-        if (cell_array[j].charAt(i)==='['){
-                parameterstring += "[";
-                while(cell_array[j].charAt(i+1)!= ']'){
-                    parameterstring += cell_array[j].charAt(i+1);
-                    i++;
+    /*Go through cells from from last to first and find parameters - but do not use them twice*/
+    const param_list=[]
+    const output_list=[]
+    for(var l = cell_array.length - 1; l >= 0; l--){
+        /*Look for input parameters*/
+        if(cell_array[j].includes("@parameter")){
+            for (var i = 0; i < cell_array[j].length; i++) {
+                if (cell_array[j].charAt(i)==='['){
+                    parameterstring += "[";
+                    while(cell_array[j].charAt(i+1)!= ']'){
+                        parameterstring += cell_array[j].charAt(i+1);
+                        i++;
+                    }
                 }
+                else if (cell_array[j].charAt(i)=== "]"){
+                    var param_name = cell_array[j].split("=");
+                    /*If the same parameter was found before (re-declared)*/
+                    if(!param_list.includes(param_name[0])){
+                        parameterstring += ",\'";
+                        parameterstring += param_name[0];
+                        parameterstring += "\'],";
+                        param_list.push(param_name[0]);
+                    }
+                }
+            }
+        /*Look for output paths*/
+        if(cell_array[j].includes("@output_file")){
+            output_file=String(cell_array[j].split("@output_file"));
+            outputfile_string = String('\noutput_file= ' + cell_array[j].split("@output_file")[0]);
         }
-        else if (cell_array[j].charAt(i)=== "]"){
-            var param_name = cell_array[j].split("=");
-            parameterstring += ",\'";
-            parameterstring += param_name[0];
-            parameterstring += "\'],";
+        /*Look for output variables*/
+        if(cell_array[j].includes("@output_variable")){
+            output_name = cell_array[j].split("@output_variable")[0];
+            /*Do not use the same output twice */
+            if(!output_list.includes(output_name)){
+                outputparameterstring+="\'";
+                outputparameterstring+= output_name;
+                outputparameterstring+="\'";
+                outputparameterstring+=', ';
+                output_list.push(output_name);
+            }
         }
         }
-    }
-        /*Es wird nach Ausgabepfaden gesucht*/
-        if(cell_array[j].includes("#@output_file")){
-            output_path=String(cell_array[j].split("#@output_file"));
-            outputfile_string = String('\noutput_path= ' + cell_array[j].split("#@output_file")[0]);
-        }
-        /*Es wird nach Ausgabeparametern gesucht*/
-        if(cell_array[j].includes("#@output_variable")){
-            outputparameterstring+="\'";
-            outputparameterstring+= cell_array[j].split("#@output_variable")[0];
-            outputparameterstring+="\'";
-            outputparameterstring+=', ';
-        }
-}       
-        /*Hilfsstrings werden abgeschlossen und aneinander gekettet*/
-        parameterstring=parameterstring.slice(0,parameterstring.length-1);
-        outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
-        parameterstring += "]";
-        parameterstring += convertInputToOutput(all_cell_content);
-        outputparameterstring += ']\n';
-        outputparameterstring += parameterstring;
-        /*String wird zurückgegeben*/
-        return outputparameterstring + `\n
+    }       
+    /*Close auxiliary strings and concatenate them*/
+    parameterstring=parameterstring.slice(0,parameterstring.length-1);
+    outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
+    parameterstring += "]";
+    parameterstring += convertInputToOutput(all_cell_content);
+    outputparameterstring += ']\n';
+    outputparameterstring += parameterstring;
+    /*Return string*/
+    return outputparameterstring + `\n
         
         
-with open(output_path, 'w', encoding='UTF8') as f:
+with open(output_file, 'w', encoding='UTF8') as f:
         writer = csv.writer(f, delimiter=",")
         iteration = 0
         params2=[]
@@ -380,15 +327,15 @@ with open(output_path, 'w', encoding='UTF8') as f:
                 params2[pointer]+=params[pointer][2]
         f.close()
         `;}
-else{
-    /*Wenn Latin Hypercube gesampelt werden soll*/
-    output_string=String(`from scipy.stats import qmc\n
-params_dictionary={}\n
-iteration=0\n`
+    else{
+        /*If a Latin hypercube shall be used for sampling*/
+        output_string=String(`from scipy.stats import qmc\n
+params_dictionary={}
+iteration=0`
 + convertInputToOutput(all_cell_content) +
-`\nwith open(output_path, 'w', encoding='UTF8') as f:
+`\nwith open(output_file, 'w', encoding='UTF8') as f:
     writer = csv.writer(f, delimiter=",")\n`)
-sampler_string=String(`    sampler = qmc.LatinHypercube(d=`);
+    sampler_string=String(`    sampler = qmc.LatinHypercube(d=`);
     var counter = 0;
     outputparameterstring = String(`    outputs=[`)
     qmc_string=String(`    parameterarray=qmc.scale(sample,l_bounds,u_bounds)
@@ -403,43 +350,57 @@ sampler_string=String(`    sampler = qmc.LatinHypercube(d=`);
             writer.writerow(csv_list)`);
     l_bound_string=String(`    l_bounds=[`);
     u_bound_string=String(`    u_bounds=[`);
+    var l_aux_string=String(``);
+    var u_aux_string=String(``);
     sample_size_string=String(`5`);
-        for(var l = 0; l< cell_array.length; l++){
-            if(cell_array[l].includes("#@parameter")){
-                /*Es wird nach Eingabeparametern gesucht, allerdings müssen diese anders verkettet werden als beim 
-                Full Factorial Parameterscan*/
-                    var param_name = cell_array[l].split(/=|,|\[|\]|#@/);
+        /*Go through cells from from last to first and find parameters - but do not use them twice*/
+        const param_list=[]
+        const output_list=[]
+        for(var l = cell_array.length - 1; l >= 0; l--){
+            if(cell_array[l].includes("@parameter")){
+                /*Look for input parameters*/
+                var param_name = cell_array[l].split(/=|,|\[|\]|@/);
+                /*If the same parameter was found before (re-declared)*/
+                if(!param_list.includes(param_name[0])){
                     output_string +=`    params_dictionary.update({'`+param_name[0]+`':''})\n`;
-                    l_bound_string += param_name[2]+`,`;
-                    u_bound_string += param_name[3]+`,`;
+                    /*Concatenate info to front of auxiliary strings to retain order of parameters*/
+                    l_aux_string = `,` + param_name[2].trim() + l_aux_string;
+                    u_aux_string = `,` + param_name[3].trim() + u_aux_string;
                     counter += 1;
+                    param_list.push(param_name[0]);
                 }
-                /*Es wird nach Ausgabeparametern gesucht*/
-                if(cell_array[l].includes("#@output_variable")){
+            }
+            /*Look for output variables and add them if not found before*/
+            if(cell_array[l].includes("@output_variable")){
+                var output_name=cell_array[l].split("@output_variable")[0]
+                if(!output_list.includes(output_name)){
                     outputparameterstring+="\'";
-                    outputparameterstring+= cell_array[l].split("#@output_variable")[0];
+                    outputparameterstring+= output_name;
                     outputparameterstring+="\'";
                     outputparameterstring+=', ';
+                    output_list.push(output_name)
                 }
-            /*Es wird nach der Anzahl der Punkte gesucht*/
-            if(cell_array[l].includes("#@number_of_sample_points")){
-                sample_size_string = cell_array[l].split(/#@/)[0];
             }
+            /*Look for number of sample points*/
+            if(cell_array[l].includes("@number_of_sample_points")){
+                sample_size_string = cell_array[l].split(/@/)[0];
             }
-            /*Hilfsstrings werden abgeschlossen und aneinander gekettet*/
-            sampler_string += String(counter)+`)
-    sample = sampler.random(n=`+sample_size_string+`)\n`;
-            outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
-            outputparameterstring+=`]\n`;
-            l_bound_string=l_bound_string.slice(0,l_bound_string.length-1);
-            u_bound_string=u_bound_string.slice(0,u_bound_string.length-1);
-            l_bound_string+= `]\n`;
-            u_bound_string+= `]\n`;
-            output_string += outputparameterstring + `    csv_list=list(params_dictionary.keys())+outputs\n    writer.writerow(csv_list)\n` +sampler_string + l_bound_string + u_bound_string + qmc_string+`\nf.close()`;
-            return output_string;
+        }
+        /*Close auxiliary strings and concatenate them*/
+        sampler_string += String(counter)+`)
+    sample = sampler.random(n=`+sample_size_string.trim()+`)\n`;
+        outputparameterstring=outputparameterstring.slice(0,outputparameterstring.length-2);
+        outputparameterstring+=`]\n`;
+        l_bound_string+=l_aux_string.slice(1,l_aux_string.length);
+        u_bound_string+=u_aux_string.slice(1,u_aux_string.length);
+        l_bound_string+= `]\n`;
+        u_bound_string+= `]\n`;
+        output_string += outputparameterstring + `    csv_list=list(params_dictionary.keys())+outputs\n    writer.writerow(csv_list)\n` +sampler_string + l_bound_string + u_bound_string + qmc_string+`\nf.close()`;
+        return output_string;
 }
-    }
-/*Hilfsseite wird definiert*/
+}
+
+/*Define the help page*/
 function createHelpIFrame() {
         var help_iframe = $('<iframe />')
           .attr({
@@ -478,13 +439,13 @@ var addButtons = function () {
       $("body").append("<div id='help-div' style='position: fixed; right: 0; top: 50px; bottom: 0; width: 30%; background-color: white; display: none;'></div>");
     
     $.getJSON(Jupyter.notebook.base_url+"nbextensions/nbSimGen/options.json", function(data) {
-    /* Fügt die erste Option zur Toolbar hinzu, bei der nichts passiert wenn sie gedrückt wird*/
+    /* Add the first option to the toolbar menu, where nothing happens when pressed*/
     var option = $("<option></option>")
                  .attr("id", "option_header")
                  .text("Select Experiment Type");
     $("select#option_picker").append(option);
 
-    // Fügt Optionen aus der options.json hinzu
+    // Add the different experiment types to options.json
     $.each(data['options'], function(key, snippet) {
         var option = $("<option></option>")
                      .attr("value", snippet['name'])
@@ -494,7 +455,7 @@ var addButtons = function () {
     });
 })
 .error(function(jqXHR, textStatus, errorThrown) {
-    /* Gibt Fehlermeldung zurück, wenn die otions.json nicht geladen werden kann*/
+    /* Throw an error, when the file otions.json cannot be loaded*/
     var option = $("<option></option>")
                  .attr("value", 'ERROR')
                  .text('Error: failed to load snippets!')
@@ -505,7 +466,7 @@ var addButtons = function () {
 
 
 };
-    /* Wird aufgerufen, wenn ein Notebook gestartet wird und die Extension aktiv ist*/
+    /* Is callen when the notebook is started and the extension is active*/
     function load_ipython_extension() {
         Jupyter.notebook.config.loaded.then(initialize);
         cells = Jupyter.notebook.get_cells()
